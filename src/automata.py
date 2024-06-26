@@ -1,107 +1,95 @@
-"""Implementação de autômatos finitos."""
+"""Aqui vou implementar dfa."""
 
 
-class InvalidTransitionError(Exception):
-    """Exceção lançada para indicar uma transição inválida no autômato."""
+class ErroException(Exception):
+    """Aqui crio uma exceção personalizada.
 
-
-def load_automata(filename):
+    Args:
+        mensagem (str): descrição do erro encontrado.
     """
-    Lê os dados de um autômato finito a partir de um arquivo.
 
-    A estrutura do arquivo deve ser:
+    def __init__(self, mensagem):
+        """Aqui inicializa a exceção.
 
-    <lista de símbolos do alfabeto, separados por espaço (' ')>
-    <lista de nomes de estados>
-    <lista de nomes de estados finais>
-    <nome do estado inicial>
-    <lista de regras de transição, com "origem símbolo destino">
+        Args:
+            mensagem (str): Mensagem do erro.
+        """
+        self.mensagem = mensagem
+        super().__init__(self.mensagem)
 
-    Um exemplo de arquivo válido é:
 
-    a b
-    q0 q1 q2 q3
-    q0 q3
-    q0
-    q0 a q1
-    q0 b q2
-    q1 a q0
-    q1 b q3
-    q2 a q3
-    q2 b q0
-    q3 a q1
-    q3 b q2
+def load_automata(filename: str):
+    """Aqui carrega um autômato a partir de um arquivo."""
+    try:
+        with open(filename, encoding='utf-8') as arquivo:
+            linhas = arquivo.readlines()
 
-    Caso o arquivo seja inválido uma exceção InvalidTransitionError é gerada.
-    """
-    with open(filename, 'rt', encoding="utf-8") as file:
-        lines = file.read().splitlines()
+            if len(linhas) < 5:
+                raise ErroException("Arquivo não é autômato.")
 
-    alphabet = lines[0].split()
-    states = lines[1].split()
-    final_states = lines[2].split()
-    initial_state = lines[3]
-    transitions = [line.split() for line in lines[4:]]
+            alfabeto = linhas[0].strip().split()
+            es = linhas[1].strip().split()
+            estados_finais = linhas[2].strip().split()
+            estado_inicial = linhas[3].strip()
+            transicao = [linha.strip().split() for linha in linhas[4:]]
 
-    delta = {}
-    for state in states:
-        delta[state] = {}
-        for symbol in alphabet:
-            delta[state][symbol] = None
+            transicoes = {}
 
-    for origin, symbol, destination in transitions:
-        if origin in states and symbol in alphabet and destination in states:
-            delta[origin][symbol] = destination
-        else:
-            raise InvalidTransitionError(f"Transição inválida: {origin} {symbol} {destination}")
+            for estado in es:
+                transicoes[transicoes] = []
+                for simbolo in alfabeto:
+                    transicoes[estado][simbolo] = None
 
-    # Verificar se todos os estados finais estão no conjunto de estados
-    for state in final_states:
-        if state not in states:
-            raise InvalidTransitionError(f"Estado final não encontrado no conjunto: {state}")
+            for origem, simbolo, destino in transicao:
+                if origem in es and simbolo in alfabeto and destino in es:
+                    transicao[origem][simbolo] = destino
+                else:
+                    raise ErroException("Transição inválida.")
 
-    # Verificar se o estado inicial está no conjunto de estados
-    if initial_state not in states:
-        raise InvalidTransitionError(f"Estado inicial não encontrado no conjunto: {initial_state}")
+            for estado in estados_finais:
+                if estado not in es:
+                    raise ErroException("Estado final não encontrado.")
 
-    automata = (states, alphabet, delta, initial_state, final_states)
-    return automata
+            if estado_inicial not in es:
+                raise ErroException("Estado inicial não encontrado")
+
+            automata = alfabeto, es, transicao, estado_inicial, estados_finais
+            return automata
+
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"Arquivo {filename} não encontrado.") from e
 
 
 def process(automata, words):
-    """
-    Processa uma lista de palavras através do autômato e retorna os resultados.
+    """Aqui processa lista de palavras."""
+    alfabeto, estados_finais, estado_inicial, transicoes = automata
 
-    Args:
-    automata: A estrutura do autômato.
-    words: Lista de palavras a serem processadas.
+    verifica = {}
+    try:
+        for word in words:
+            estado_atual = estado_inicial
+            verificacao = True
 
-    Returns:
-    Um dicionário com palavras como chaves e
-    seus respectivos resultados ('ACEITA', 'REJEITA', 'INVALIDA').
-    """
-    _, alphabet, delta, initial_state, final_states = automata
-    results = {}
+            for simbolo in word:
+                if simbolo not in alfabeto:
+                    verifica[word] = "INVÁLIDA"
+                    verificacao = False
+                    break
 
-    for word in words:
-        current_state = initial_state
-        valid = True
+                estado_atual = transicoes[estado_atual].get(simbolo)
 
-        for symbol in word:
-            if symbol not in alphabet:
-                results[word] = 'INVALIDA'
-                valid = False
-                break
-            current_state = delta[current_state].get(symbol)
-            if current_state is None:
-                results[word] = 'REJEITA'
-                valid = False
-                break
+                if estado_atual is None:
+                    verifica[word] = "REJEITA"
+                    verificacao = False
+                    break
 
-        if valid:
-            if current_state in final_states:
-                results[word] = 'ACEITA'
-            else:
-                results[word] = 'REJEITA'
+                if verificacao:
+                    if estado_atual in estados_finais:
+                        verifica[word] = "ACEITA"
+                    else:
+                        verifica[word] = "REJEITA"
 
-    return results
+    except Exception as e:
+        raise ErroException(f"Erro ao processar palavra '{word}': {e}.") from e
+
+    return verifica
