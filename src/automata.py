@@ -18,7 +18,7 @@ class ErroException(Exception):
         super().__init__(self.mensagem)
 
 
-def load_automata(filename: str) -> Tuple[Set[str], Set[str], Dict[Tuple[str, str], str], str, Set[str]]:
+def load_automata(filename: str):
     """Carrega um autômato a partir de um arquivo."""
     try:
         with open(filename, encoding='utf-8') as file:
@@ -63,8 +63,8 @@ def load_automata(filename: str) -> Tuple[Set[str], Set[str], Dict[Tuple[str, st
         raise ErroException(f"Erro ao carregar o autômato: {e}") from e
 
 
-def process(automato: Tuple[Set[str], Set[str], Dict[Tuple[str, str], str], str, Set[str]], words: List[str]) -> Dict[str, str]:
-    """Processa uma lista de palavras no autômato DFA."""
+def process(automata, words):
+    """Processa uma lista de palavras no autômato."""
     estados, sigma, delta, q0, final_states = automato
     results = {}
 
