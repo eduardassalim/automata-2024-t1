@@ -93,3 +93,4 @@ def process(automata, words):
         raise ErroException(f"Erro ao processar palavra '{word}': {e}.") from e
 
     return verifica
+    
