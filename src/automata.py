@@ -88,8 +88,8 @@ def process(automata, words):
                         verifica[word] = "ACEITA"
                     else:
                         verifica[word] = "REJEITA"
+
     except Exception as e:
         raise ErroException(f"Erro ao processar palavra '{word}': {e}.") from e
 
     return verifica
-    
