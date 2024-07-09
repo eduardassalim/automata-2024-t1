@@ -18,78 +18,76 @@ class ErroException(Exception):
         super().__init__(self.mensagem)
 
 
-def load_automata(filename: str):
-    """Aqui carrega um autômato a partir de um arquivo."""
+def load_automata(filename: str) -> Tuple[Set[str], Set[str], Dict[Tuple[str, str], str], str, Set[str]]:
+    """Carrega um autômato a partir de um arquivo."""
     try:
-        with open(filename, encoding='utf-8') as arquivo:
-            linhas = arquivo.readlines()
+        with open(filename, encoding='utf-8') as file:
+            lines = file.read().splitlines()
 
-            if len(linhas) < 5:
-                raise ErroException("Arquivo não é autômato.")
+        if len(lines) < 5:
+            raise ErroException("Descrição incompleta do autômato.")
 
-            alfabeto = linhas[0].strip().split()
-            estados = linhas[1].strip().split()
-            estados_finais = linhas[2].strip().split()
-            estado_inicial = linhas[3].strip()
-            transicao = [linha.strip().split() for linha in linhas[4:]]
+        alfabeto = set(lines[1].strip().split())
+        estados = set(lines[1].strip().split())
+        estado_inicial = lines[3].strip()
+        estados_finais = set(lines[2].strip().split())
 
-            transicoes = {}
+        if estado_inicial not in estados:
+            raise ErroException("Estado inicial não está no conjunto de estados.")
 
-            for estado in estados:
-                transicoes[transicoes] = []
-                for simbolo in alfabeto:
-                    transicoes[estado][simbolo] = None
+        if not estados_finais.issubset(estados):
+            raise ErroException("Estados finais não estão no conjunto de estados.")
 
-            for origem, simbolo, destino in transicao:
-                if origem in estados and simbolo in alfabeto and destino in estados:
-                    transicao[origem][simbolo] = destino
+        delta = {}
+
+        for rule in lines[4:]:
+            parts = rule.split()
+            if len(parts) != 3:
+                raise ErroException("Formato inválido da regra de transição.")
+            origem, simbolo, destino = parts
+            if origem not in estados or (simbolo not in alfabeto and simbolo != '&') or destino not in estados:
+                raise ErroException("Componentes da regra inválidos.")
+            if (origem, simbolo) not in delta:
+                delta[(origem, simbolo)] = destino
+            else:
+                if isinstance(delta[(origem, simbolo)], list):
+                    delta[(origem, simbolo)].append(destino)
                 else:
-                    raise ErroException("Transição inválida.")
+                    delta[(origem, simbolo)] = [delta[(origem, simbolo)], destino]
 
-            for estado in estados_finais:
-                if estado not in estados:
-                    raise ErroException("Estado final não encontrado.")
+        return estados, alfabeto, delta, estado_inicial, estados_finais
 
-            if estado_inicial not in estados:
-                raise ErroException("Estado inicial não encontrado")
-
-            automata = alfabeto, estados, transicao, estado_inicial, estados_finais
-            return automata
-
-    except FileNotFoundError as e:
-        raise FileNotFoundError(f"Arquivo {filename} não encontrado.") from e
-
-
-def process(automata, words):
-    """Aqui processa lista de palavras."""
-    alfabeto, estados_finais, estado_inicial, transicoes = automata
-
-    verifica = {}
-    try:
-        for word in words:
-            estado_atual = estado_inicial
-            verificacao = True
-
-            for simbolo in word:
-                if simbolo not in alfabeto:
-                    verifica[word] = "INVÁLIDA"
-                    verificacao = False
-                    break
-
-                estado_atual = transicoes[estado_atual].get(simbolo)
-
-                if estado_atual is None:
-                    verifica[word] = "REJEITA"
-                    verificacao = False
-                    break
-
-                if verificacao:
-                    if estado_atual in estados_finais:
-                        verifica[word] = "ACEITA"
-                    else:
-                        verifica[word] = "REJEITA"
-
+    except FileNotFoundError as exc:
+        raise FileNotFoundError("Arquivo não encontrado.") from exc
     except Exception as e:
-        raise ErroException(f"Erro ao processar palavra '{word}': {e}.") from e
+        raise ErroException(f"Erro ao carregar o autômato: {e}") from e
 
-    return verifica
+
+def process(automato: Tuple[Set[str], Set[str], Dict[Tuple[str, str], str], str, Set[str]], words: List[str]) -> Dict[str, str]:
+    """Processa uma lista de palavras no autômato DFA."""
+    estados, sigma, delta, q0, final_states = automato
+    results = {}
+
+    for word in words:
+        current_state = q0
+        valid = True
+
+        for symbol in word:
+            if symbol not in sigma and symbol != '&':
+                results[word] = "INVÁLIDA"
+                valid = False
+                break
+            if (current_state, symbol) in delta:
+                current_state = delta[(current_state, symbol)]
+            else:
+                results[word] = "REJEITA"
+                valid = False
+                break
+
+        if valid:
+            if current_state in final_states:
+                results[word] = "ACEITA"
+            else:
+                results[word] = "REJEITA"
+
+    return results
